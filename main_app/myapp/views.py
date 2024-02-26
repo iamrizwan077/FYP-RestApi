@@ -59,6 +59,7 @@
 
 from django.shortcuts import render
 import pickle
+from rest_framework import status
 import pandas as pd
 import datetime
 from rest_framework.response import Response
@@ -70,137 +71,228 @@ from django.views.decorators.csrf import csrf_exempt
 from myapp import serializers, models
 from rest_framework import generics
 from rest_framework import filters
-from ml_pipeline import missing_invoice
+from ml_pipeline import missing_invoice, run_pipeline
 
 # Create your views here.
-# @authentication_classes([SessionAuthentication, TokenAuthentication])
-# @permission_classes([IsAuthenticated])
-# @api_view(['GET', 'POST'])
-# def submit_data(request):
-#     if request.method == "POST":
-#         created_date_time = datetime.datetime.fromisoformat(request.data['created_date_time'])
-#         data = {
-#             'pos_id': request.data.get('pos_id'),
-#             'ntn': request.data.get('ntn_id'),
-#             'rate_value': request.data.get('rate_value'),
-#             'sales_value': request.data.get('sales_value'),
-#             'consumer_name': request.data.get('consumer_name', 0.0),
-#             'consumer_ntn': request.data.get('consumer_ntn', 0.0),
-#             'consumer_address': request.data.get('consumer_address', 0.0),
-#             'extra_info': request.data.get('extra_info', 0.0),
-#             'is_active': request.data.get('is_active'),
-#             'invoice_type': request.data.get('invoice_type'),
-#             'consider_for_Annex': request.data.get('consider_for_annex'),
-#             'month': created_date_time.month,
-#             'weekday': created_date_time.weekday(),
-#             'day': created_date_time.day,
-#             'time_seconds': time_to_sec(created_date_time)
-#         }
-#         # data = []
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+@api_view(['POST'])
+def submit_data(request):
+    if request.method == "POST":
+        # created_date_time = datetime.datetime.fromisoformat(request.data['created_date_time'])
+        # data = {
+        #     'pos_id': request.data.get('pos_id'),
+        #     'ntn': request.data.get('ntn_id'),
+        #     'rate_value': request.data.get('rate_value'),
+        #     'sales_value': request.data.get('sales_value'),
+        #     'consumer_name': request.data.get('consumer_name', 0.0),
+        #     'consumer_ntn': request.data.get('consumer_ntn', 0.0),
+        #     'consumer_address': request.data.get('consumer_address', 0.0),
+        #     'extra_info': request.data.get('extra_info', 0.0),
+        #     'is_active': request.data.get('is_active'),
+        #     'invoice_type': request.data.get('invoice_type'),
+        #     'consider_for_Annex': request.data.get('consider_for_annex'),
+        #     'month': created_date_time.month,
+        #     'weekday': created_date_time.weekday(),
+        #     'day': created_date_time.day,
+        #     'time_seconds': time_to_sec(created_date_time)
+        # }
+        # data = []
 
-#         print(data)
-#         serializer = serializers.AnomalySerializer(data=request.data)
-#         if serializer.is_valid():
-#             with open('/workspaces/FYP-RestApi/main_app/myapp/single_invoice.pkl', 'rb') as file:
-#                 loaded_model = pickle.load(file)
-#                 # print("1")
-#                 prediction = loaded_model.predict([[i for i in data.values()]])
-#                 # print("2")
-#                 print("Anomaly Prediction:", prediction[0])
-#                 serializer.validated_data['anomaly'] = prediction[0]
-#                 serializer.save()
-#             return Response(prediction)
-#         else:
-#             return Response(serializer.errors)
+        print(request.data)
+        serializer = serializers.AnomalySerializer(data=request.data['data'], many=True)
+        # print(serializer.data)
+        if serializer.is_valid():
+            # print(serializer.data)
+            print("----------------------sahi data aaya------------------------")
+
+            df = pd.DataFrame.from_dict(request.data['data'])
+            print(df.head(3))
+            prediction = run_pipeline.main(df)
+            print("Pred", prediction)
+            # with open('/workspaces/FYP-RestApi/main_app/myapp/single_invoice.pkl', 'rb') as file:
+            #     loaded_model = pickle.load(file)
+            #     # print("1")
+            #     prediction = loaded_model.predict([[i for i in data.values()]])
+            #     # print("2")
+            #     print("Anomaly Prediction:", prediction[0])
+            #     serializer.validated_data['anomaly'] = prediction[0]
+            #     serializer.save()
+            return Response(prediction)
+        else:
+            print("-------------------ERROR AARHA----------------------")
+            print(serializer.errors)
+            return Response(serializer.errors)
+    
 import json
 @authentication_classes([SessionAuthentication, TokenAuthentication])
 @permission_classes([IsAuthenticated])
-@api_view(['GET', 'POST'])
-def submit_data(request):
+@api_view(['POST'])
+def missing_invoices(request):
     if request.method == "POST":
         print(request.data)
         # data = json.loads(request.data)
         # df = pd.read_json(request.data['data'])
         df2 = pd.DataFrame.from_dict(request.data['data'], orient="columns")
-        print(df2)
-        print(missing_invoice.main(df2))
-        return Response(request.data)
+        # print(df2)
+        result = missing_invoice.main(df2)
+        print(result)
+        # data = {
+        #     'date':result['date'],
+        #     'ntn': result['ntn'], 
+        #     'invoices': result['invoices']
+        # }
+        # result['invoices'] = ','.join(map(str, result['invoices']))
+        serializer = serializers.MissingInvoiceSerializer(data=result, many=True)
+        if serializer.is_valid():
+            print(serializer.data)
+            serializer.save()
+            return Response("OK", status=status.HTTP_202_ACCEPTED)
+        else:
+            print(serializer.errors)
+            return Response(serializer.errors)
+    
+        
+        # return Response(request.data)
         # print(request.data)
 
-        data = {
-            'pos_id': request.data.get('pos_id'),
-            'ntn': request.data.get('ntn_id'),
-            'rate_value': request.data.get('rate_value'),
-            'sales_value': request.data.get('sales_value'),
-            'consumer_name': request.data.get('consumer_name', 0.0),
-            'consumer_ntn': request.data.get('consumer_ntn', 0.0),
-            'consumer_address': request.data.get('consumer_address', 0.0),
-            'extra_info': request.data.get('extra_info', 0.0),
-            'is_active': request.data.get('is_active'),
-            'invoice_type': request.data.get('invoice_type'),
-            'consider_for_Annex': request.data.get('consider_for_annex'),
-            'month': created_date_time.month,
-            'weekday': created_date_time.weekday(),
-            'day': created_date_time.day,
-            'time_seconds': time_to_sec(created_date_time)
-        }
-        created_date_time = datetime.datetime.fromisoformat(request.data['created_date_time'])
-        data = {
-            'pos_id': request.data.get('pos_id'),
-            'ntn': request.data.get('ntn_id'),
-            'rate_value': request.data.get('rate_value'),
-            'sales_value': request.data.get('sales_value'),
-            'consumer_name': request.data.get('consumer_name', 0.0),
-            'consumer_ntn': request.data.get('consumer_ntn', 0.0),
-            'consumer_address': request.data.get('consumer_address', 0.0),
-            'extra_info': request.data.get('extra_info', 0.0),
-            'is_active': request.data.get('is_active'),
-            'invoice_type': request.data.get('invoice_type'),
-            'consider_for_Annex': request.data.get('consider_for_annex'),
-            'month': created_date_time.month,
-            'weekday': created_date_time.weekday(),
-            'day': created_date_time.day,
-            'time_seconds': time_to_sec(created_date_time)
-        }
-        # data = []
-        print(data)
-        serializer = serializers.AnomalySerializer(data=request.data)
-        if serializer.is_valid():
-            with open('/workspaces/FYP-RestApi/main_app/myapp/single_invoice.pkl', 'rb') as file:
-                loaded_model = pickle.load(file)
-                # print("1")
-                prediction = loaded_model.predict([[i for i in data.values()]])
-                # print("2")
-                print("Anomaly Prediction:", prediction[0])
-                serializer.validated_data['anomaly'] = prediction[0]
-                serializer.save()
-            return Response(prediction)
-        else:
-            return Response(serializer.errors)
+        # data = {
+        #     'pos_id': request.data.get('pos_id'),
+        #     'ntn': request.data.get('ntn_id'),
+        #     'rate_value': request.data.get('rate_value'),
+        #     'sales_value': request.data.get('sales_value'),
+        #     'consumer_name': request.data.get('consumer_name', 0.0),
+        #     'consumer_ntn': request.data.get('consumer_ntn', 0.0),
+        #     'consumer_address': request.data.get('consumer_address', 0.0),
+        #     'extra_info': request.data.get('extra_info', 0.0),
+        #     'is_active': request.data.get('is_active'),
+        #     'invoice_type': request.data.get('invoice_type'),
+        #     'consider_for_Annex': request.data.get('consider_for_annex'),
+        #     'month': created_date_time.month,
+        #     'weekday': created_date_time.weekday(),
+        #     'day': created_date_time.day,
+        #     'time_seconds': time_to_sec(created_date_time)
+        # }
+        # created_date_time = datetime.datetime.fromisoformat(request.data['created_date_time'])
+        # data = {
+        #     'pos_id': request.data.get('pos_id'),
+        #     'ntn': request.data.get('ntn_id'),
+        #     'rate_value': request.data.get('rate_value'),
+        #     'sales_value': request.data.get('sales_value'),
+        #     'consumer_name': request.data.get('consumer_name', 0.0),
+        #     'consumer_ntn': request.data.get('consumer_ntn', 0.0),
+        #     'consumer_address': request.data.get('consumer_address', 0.0),
+        #     'extra_info': request.data.get('extra_info', 0.0),
+        #     'is_active': request.data.get('is_active'),
+        #     'invoice_type': request.data.get('invoice_type'),
+        #     'consider_for_Annex': request.data.get('consider_for_annex'),
+        #     'month': created_date_time.month,
+        #     'weekday': created_date_time.weekday(),
+        #     'day': created_date_time.day,
+        #     'time_seconds': time_to_sec(created_date_time)
+        # }
+        # # data = []
+        # print(data)
+        # serializer = serializers.AnomalySerializer(data=request.data)
+        # if serializer.is_valid():
+        #     with open('/workspaces/FYP-RestApi/main_app/myapp/single_invoice.pkl', 'rb') as file:
+        #         loaded_model = pickle.load(file)
+        #         # print("1")
+        #         prediction = loaded_model.predict([[i for i in data.values()]])
+        #         # print("2")
+        #         print("Anomaly Prediction:", prediction[0])
+        #         serializer.validated_data['anomaly'] = prediction[0]
+        #         serializer.save()
+        #     return Response(prediction)
+        # else:
+        #     return Response(serializer.errors)
 
 # class 
-
+from rest_framework import status
 def time_to_sec(time):
     return time.hour * 3600 + time.minute * 60 + time.second
 
 class FilterView(generics.ListAPIView):
-    serializer_class = serializers.AnomalySerializer
-    queryset = models.Anomaly.objects.all()
+    # 
+    missing_data_serializer_class = serializers.MissingInvoiceSerializer
+    missing_data_queryset = models.MissingInvoice.objects.all()
+
+    anomaly_serializer_class = serializers.AnomalySerializer
+    anomaly_data_queryset = models.Anomaly.objects.all()
+
+    ntn_serializer_class = serializers.NTNSerializer
+    ntn_data_queryset = models.NTN.objects.all()
+
     filter_backends = [filters.OrderingFilter]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        if any(param in self.request.query_params for param in ['missing_invoice_by_ntn', 'missing_invoice_by_date']):
+            queryset = self.missing_data_queryset
+        elif "ntn" in self.request.query_params:
+            queryset = self.ntn_data_queryset
+        else:
+            queryset = self.anomaly_data_queryset
+
+
         anomaly = self.request.query_params.get('anomaly')
-        pos_id = self.request.query_params.get('pos')
-        ntn_id = self.request.query_params.get('ntn')
-        srb_invoice_id = self.request.query_params.get('srb_invoice_id')
-        
-        if anomaly is not None and anomaly == True or False:
+        anomaly_by_pos = self.request.query_params.get('anomaly_by_pos')
+        anomaly_by_ntn = self.request.query_params.get('anomaly_by_ntn')
+        anomaly_by_srb_invoice_id = self.request.query_params.get('anomaly_by_srb_invoice_id')
+        anomaly_by_date = self.request.query_params.get('anomaly_by_date')
+
+        missing_invoice_by_date = self.request.query_params.get('missing_invoice_by_date')
+        missing_invoice_by_ntn = self.request.query_params.get('missing_invoice_by_ntn')
+        # print(self.request.query_params)
+
+        ntn = self.request.query_params.get('ntn')
+        # print(ntn)        
+
+        if anomaly in ['True', 'False']:
             queryset = queryset.filter(anomaly=anomaly)
-        if pos_id is not None:
-            queryset = queryset.filter(pos_id=pos_id)
-        if ntn_id is not None:
-            queryset = queryset.filter(ntn_id=ntn_id)
-        if srb_invoice_id is not None:
-            queryset = queryset.filter(srb_invoice_id=srb_invoice_id)
+        if anomaly_by_pos is not None:
+            queryset = queryset.filter(pos_id=anomaly_by_pos)
+        if anomaly_by_ntn is not None:
+            queryset = queryset.filter(ntn=anomaly_by_ntn)
+        if anomaly_by_date is not None:
+            queryset = queryset.filter(created_date_time=anomaly_by_date)
+        if anomaly_by_srb_invoice_id is not None:
+            queryset = queryset.filter(srb_invoice_id=anomaly_by_srb_invoice_id)
+
+        if missing_invoice_by_date is not None:
+            queryset = queryset.filter(date=missing_invoice_by_date)
+        if missing_invoice_by_ntn is not None:
+            queryset = queryset.filter(ntn=missing_invoice_by_ntn)
+        
+        if ntn is not None:
+            # print(ntn)
+            if ntn == "all":
+                # print("all")
+                queryset = queryset.all()
+            else:
+                # print(ntn)
+                queryset = queryset.filter(ntn=ntn)
+
         return queryset
+
+    def get_serializer_class(self):
+        if any(param in self.request.query_params for param in ['missing_invoice_by_ntn', 'missing_invoice_by_date']):
+            return self.missing_data_serializer_class
+        elif "ntn" in self.request.query_params:
+            return self.ntn_serializer_class
+        else:
+            return self.anomaly_serializer_class
+
+# @authentication_classes([SessionAuthentication, TokenAuthentication])
+# @permission_classes([IsAuthenticated])
+# @api_view(['GET', 'POST'])
+# def get_ntn(request, pk=None):
+#     # if request.method == "GET":
+#     # print(pk)
+#     if pk == None:
+#         queryset = models.NTN.objects.all()
+#         serializer = serializers.NTNSerializer(queryset, many=True)
+#         return Response(serializer.data)
+#     else:
+#         queryset = models.NTN.objects.get(ntn=pk)
+#         serializer = serializers.NTNSerializer(queryset)
+#         return Response(serializer.data)
