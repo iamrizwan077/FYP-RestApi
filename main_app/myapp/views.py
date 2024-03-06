@@ -404,8 +404,9 @@ def submit_data(request):
             if serializer.is_valid():
                 
                 df = pd.DataFrame.from_dict(request.data['data'])
+                print(df)
                 prediction = run_pipeline.main(df)
-                
+                print(prediction)
                 df['anomaly'] = prediction
                 df.rename(columns={'consider_for_Annex': 'consider_for_annex'}, inplace=True)
                 
@@ -414,13 +415,16 @@ def submit_data(request):
                 for i in data:
                     i['ntn'] = models.NTN.objects.get(ntn=i['ntn'])
                     i['anomaly'] = models.AnomalyInfo.objects.get(pk=i['anomaly'])
+                    i['created_date_time'] = datetime.datetime.fromisoformat(i['created_date_time'])
                     del i['name']
                     del i['location']
                 models.Anomaly.objects.bulk_create([models.Anomaly(**record) for record in data])
                 return Response("OK", status=status.HTTP_200_OK)
             else:
+                print(serializer.errors)
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            print(e)
             return Response(str(e), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @authentication_classes([SessionAuthentication, TokenAuthentication])

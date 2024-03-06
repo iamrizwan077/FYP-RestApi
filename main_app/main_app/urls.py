@@ -17,6 +17,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
+admin.site.site_header = "SRB Admin"
+admin.site.site_title = "SRB Admin Portal"
+admin.site.index_title = "Welcome to SRB Admin Portal"
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path('dj-rest-auth/', include('dj_rest_auth.urls')),
