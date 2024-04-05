@@ -5,7 +5,7 @@ from django.core.validators import int_list_validator
 class NTN(models.Model):
     ntn = models.IntegerField(primary_key=True)
     name = models.CharField(max_length=256)
-    location = models.CharField(max_length=256)
+    # location = models.CharField(max_length=256)
 
     def __str__(self) -> str:
         return f'{self.ntn} - {self.name}'
@@ -34,17 +34,24 @@ class AnomalyInfo(models.Model):
 #     class Meta:
 #         # This Meta class sets the composite primary key constraint
 #         unique_together = ('pos', 'ntn')
+class Location(models.Model):
+    # id = models.IntegerField(primary_key=True)
+    location = models.CharField(max_length=256)
+
+    def __str__(self) -> str:
+        return f'{self.id} - {self.location}'    
 
 class Anomaly(models.Model):
     srb_invoice_id = models.CharField(primary_key=True, max_length=256)
     # pos = models.ForeignKey(POS, to_field="pos", on_delete=models.DO_NOTHING)
     pos_id = models.IntegerField()
+    location = models.ForeignKey(Location, on_delete=models.DO_NOTHING)
     ntn = models.ForeignKey(NTN, on_delete=models.DO_NOTHING)
     invoice_date = models.DateTimeField()
     invoice_no = models.CharField(max_length=256, null=True)
     rate_value = models.FloatField(null=True)
-    sales_value = models.FloatField()
-    sales_tax = models.FloatField()
+    sales_value = models.FloatField(null=True)
+    sales_tax = models.FloatField(null=True)
     consumer_name = models.CharField(max_length=256, null=True)
     # consumer_ntn = models.ForeignKey(NTN, on_delete=models.DO_NOTHING)
     consumer_ntn = models.CharField(null=True, max_length=256, blank=True)
@@ -68,9 +75,11 @@ class Anomaly(models.Model):
 
 class MissingInvoice(models.Model):
     ntn = models.ForeignKey(NTN, on_delete=models.DO_NOTHING)
-    invoices = models.CharField(validators=[int_list_validator], max_length=256)
+    invoices = models.CharField(validators=[int_list_validator], max_length=10000)
     date = models.DateField()
-
+    pos_id = models.IntegerField()
+    location = models.ForeignKey(Location, on_delete=models.DO_NOTHING)
+    
     class Meta:
         verbose_name = ("Missing Invoice")
         verbose_name_plural = ("Missing Invoices")

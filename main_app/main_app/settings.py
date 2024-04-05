@@ -25,8 +25,11 @@ SECRET_KEY = "django-insecure-el&xqvfc@t9lju1io4hp!j(2la#952fu$0e=_894=glb**dz)*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+CSRF_TRUSTED_ORIGINS = [
+    'https://firm-intimate-longhorn.ngrok-free.app', 'http://localhost:5173'
+]
 
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -97,7 +100,7 @@ MIDDLEWARE = [
 # }
 
 ROOT_URLCONF = "main_app.urls"
-
+# LOGOUT_REDIRECT_URL = "/"
 ACCOUNT_EMAIL_REQUIRED = True
 
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
@@ -141,10 +144,21 @@ WSGI_APPLICATION = "main_app.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.sqlite3",
+#         "NAME": BASE_DIR / "db.sqlite3",
+#     }
+# }
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'fyp',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+        'HOST': 'localhost',
+        'PORT': 5432
     }
 }
 
@@ -173,7 +187,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Karachi"
 
 USE_I18N = True
 
